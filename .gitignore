@@ -23,3 +23,7 @@
 # Compilation directories
 obj/*
 bin/*
+
+# Emacs temp files
+*\#
+*\~
