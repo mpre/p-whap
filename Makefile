@@ -3,14 +3,18 @@
 BIN_DIR=bin/
 OBJ_DIR=obj/
 
-WHAP_DEPS=$(OBJ_DIR)whap.o
+WHAP_DEPS=$(OBJ_DIR)whap.o \
+	$(OBJ_DIR)Matrix.o \
+	$(OBJ_DIR)Bipartition.o
+
+INCLUDES=-I.
 
 all: whap
 
 ${OBJ_DIR}%.o: %.cpp
 	@echo '* Compiling $<'
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -o $@ -c $<
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ -c $<
 
 .PHONY: whap
 whap: $(BIN_DIR)whap

@@ -2,50 +2,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <Matrix.hpp>
+#include <Bipartition.hpp>
+#include <vector>
 
-//Data type
-
-/* 
-   This is the type of data necessary to represent a bi-partization of the fragments. 
-   It has to represent an array with length equal to the number of fragments
-   where each position i of this array corresponds to fragment i and its value is equal
-   to 0 or to 1, depending on which part fragment i has been placed.
-
-   Notice that two bi-partition are equivalent if they are equal or complementary. 
-*/
-typedef int Bipartition;
-
-
-/*
-  This is the type necessary to represent a fragment. Its length is equal to the number of
-  SNP positions in the input. Each position i is equal to a simbol "-" if the fragment does not
-  cover the corresponding position i, or it is equal to 0/1 depending on value in the input.
-  A fragment corresponds to a sequence of 0's and 1's, preceded and followed by a certain number
-  of symbols "-". Between each pair of 0's and 1's in a fragment there cannot be any symbol "-".
-*/
-typedef int Fragment;
-
-
-/*
-  This is the type necessary to representa a matrix (n x m) with a certain number of rows n 
-  and a certain number of columns m
-*/
-typedef int Matrix;
-
+using std::vector;
 
 
 //Definition of the functions
 
 
-bool accordance(Bipartition bip1, int* active1, int len, Bipartition bip2, int* active2, int len2);
-void computeMinimum(int j, int* activePositionsJ, int len, Bipartition bipJ, int &minimum);
-void computeDelta(int col, int* active, int len, Bipartition bip, int &delta);
-void computeActivePositions(int col, int &l, int *activePositions);
-void computeBipartitions(Bipartition *bips);
+bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int *active2, int len2);
+void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<Bipartition> &bips);
+void computeDelta(int col, int* active, int len, Bipartition &bip, int &delta, Matrix &input);
+void computeActivePositions(int col, int &l, int *activePositions, Matrix &input);
+void computeBipartitions(vector<Bipartition> &bips);
 bool isIn(int n, int *array, int len);
-int at(Bipartition bip, int position);
 void setMatrix(Matrix matrix, int i, int j, int value);
 int getMatrix(Matrix matrix, int i, int j);
+int expo(int base, int exp);
 
 
 //Global data
@@ -57,7 +32,7 @@ int getMatrix(Matrix matrix, int i, int j);
 */
 int n;       //Number of fragments
 int m;       //Number of columns
-Matrix input;
+
 
 
 /*
@@ -68,15 +43,6 @@ Matrix input;
   the last column j.
 */
 int b;       //Number of bipartitions
-Matrix optimum;
-
-
-/*
-  Set of all the possible bipartitions
-*/
-
-Bipartition *bips;
-
 
 
 
@@ -90,27 +56,32 @@ int main(int argc, char** argv)
   int minimum;
   int* activePositions;
   int len;
-
   
+  Matrix input(n, m);
+  Matrix optimum(b, m);
+  
+  vector<Bipartition> bips;
+
   computeBipartitions(bips);
 
 
   for (int col = 0; col < m; col++)
     {
-      computeActivePositions(col, len, activePositions);
+      computeActivePositions(col, len, activePositions, input);
       delta = 0;
       minimum = 0;
 
       for(int i = 0; i < b; i++)
         {
-          computeDelta(col, activePositions, len, bips[i], delta);
-          computeMinimum(col, activePositions, len, bips[i], minimum);
+          computeDelta(col, activePositions, len, bips.at(i), delta, input);
+          computeMinimum(col, activePositions, len, bips.at(i), minimum, optimum, input, bips);
 
-          setMatrix(optimum, i, col, delta + minimum);
+          optimum.setMatrix(i, col, delta + minimum);
         }
 
     }
-
+  delete activePositions;
+  
 }
 
 
@@ -120,7 +91,7 @@ int main(int argc, char** argv)
   same way.
 */
 
-bool accordance(Bipartition bip1, int* active1, int len, Bipartition bip2, int* active2, int len2)
+bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int *active2, int len2)
 {
   int pos = 0;
   bool flagEqual = true;
@@ -131,7 +102,7 @@ bool accordance(Bipartition bip1, int* active1, int len, Bipartition bip2, int* 
       if (isIn(active1[i], active2, len2))
         {
           pos = active1[i];
-          if (at(bip1, pos) == at(bip2, pos))
+          if (bip1.at(pos) == bip2.at(pos))
             {
               flagComplementary = false;
             } else {
@@ -155,21 +126,21 @@ bool accordance(Bipartition bip1, int* active1, int len, Bipartition bip2, int* 
 */
 
 
-void computeMinimum(int j, int* activePositionsJ, int len, Bipartition bipJ, int &minimum)
+void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<Bipartition> &bips)
 {
   int len1;
   int* activePositionsJ1;
   int tempMinimum = 0;
 
-  computeActivePositions(j-1, len1, activePositionsJ1);
+  computeActivePositions(j-1, len1, activePositionsJ1, input);
 
   for (int i = 0; i < b; i++)
     {
-      if (accordance(bipJ, activePositionsJ, len, bips[i], activePositionsJ1, len1))
+      if (accordance(bipJ, activePositionsJ, len, bips.at(i), activePositionsJ1, len1))
         {
-          if(getMatrix(optimum, i, j - 1) < tempMinimum)
+          if(optimum.getMatrix(i, j - 1) < tempMinimum)
             {
-              tempMinimum = getMatrix(optimum, i, j - 1);
+              tempMinimum = optimum.getMatrix(i, j - 1);
             }
         }
     }
@@ -184,7 +155,7 @@ void computeMinimum(int j, int* activePositionsJ, int len, Bipartition bipJ, int
   equal to 0, or one 0 and one 1, or both equal to 1) corresponding to the given bipartition.
 */
 
-void computeDelta(int col, int* active, int len, Bipartition bip, int &delta)
+void computeDelta(int col, int* active, int len, Bipartition &bip, int &delta, Matrix &input)
 {
   //Value for the combination when both the parts are equal to 0
   int sol1 = 0;
@@ -200,9 +171,9 @@ void computeDelta(int col, int* active, int len, Bipartition bip, int &delta)
   for(i = 0; i < len; i++)
     {
       //If the element active[i] is in the part 0 in the bipartition bip
-      if (at(bip, active[i]) == 0)
+      if (bip.at(active[i]) == 0)
         {
-          if (getMatrix(input, active[i], col) == 1) {
+          if (input.getMatrix(active[i], col) == 1) {
             sol1++;
             sol2++;
           } else {
@@ -211,7 +182,7 @@ void computeDelta(int col, int* active, int len, Bipartition bip, int &delta)
           }
           //If the element active[i] is in the part 1 in the bipartition bip
         } else {
-        if (getMatrix(input, active[i], col) == 1) {
+        if (input.getMatrix(active[i], col) == 1) {
           sol1++;
           sol3++;
         } else {
@@ -260,12 +231,12 @@ void computeDelta(int col, int* active, int len, Bipartition bip, int &delta)
 */
 
 
-void computeActivePositions(int col, int &l, int *activePositions) {
+void computeActivePositions(int col, int &l, int *activePositions, Matrix &input) {
   int len = 0;
   int temp;
 
   for (int i = 0; i < m; i++) {
-    temp = getMatrix(input, i, col);
+    temp = input.getMatrix(i, col);
     if(temp == 0 || temp == 1) {
       len++;
     }
@@ -275,7 +246,7 @@ void computeActivePositions(int col, int &l, int *activePositions) {
   int iter = 0;
   
   for (int i = 0; i < m; i++) {
-    temp = getMatrix(input, i, col);
+    temp = input.getMatrix(i, col);
     if(temp == 0 || temp == 1) {
       tempActive[iter] = i;
       iter++;
@@ -292,7 +263,28 @@ void computeActivePositions(int col, int &l, int *activePositions) {
 */
 
 
-void computeBipartitions(Bipartition *bips){}
+void computeBipartitions(vector<Bipartition> &bips)
+{
+  int temp[n];
+  for (int i = 0; i < expo(2, n); i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      if (((1 << j) & i) == 0)
+      {
+        temp[j] = 0;
+      } else {
+        temp[j] = 1;
+      }
+    }
+
+    //ERROREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    Bipartition x( temp, n );
+    bips.push_back(x);
+  }
+}
+
+
 
 
 /*
@@ -313,20 +305,15 @@ bool isIn(int n, int *array, int len)
 }
 
 
-/*
-  Function that returns the element of the bipartition bip in the position "position"
-*/
 
-int at(Bipartition bip, int position) {}
+int expo(int base, int exp)
+{
+  if (exp == 0)
+    {
+      return 1;
+    } else {
+    return base * expo(base, exp - 1);
+  }
+}
 
-/*
-  Function that sets the value "value" at position (i,j) of the Matrix matrix.
-*/
 
-void setMatrix(Matrix matrix, int i, int j, int value) {}
-
-
-/*
-  Function that returns the value of the Matrix matrix in the position (i,j)
-*/
-int getMatrix(Matrix matrix, int i, int j) {}
