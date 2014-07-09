@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <Matrix.hpp>
-#include <Bipartition.hpp>
 #include <vector>
+
+#include "Matrix.hpp"
+#include "Bipartition.hpp"
 
 using std::vector;
 
