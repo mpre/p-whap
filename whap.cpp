@@ -12,11 +12,11 @@ using std::vector;
 //Definition of the functions
 
 
-bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int *active2, int len2);
-void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<Bipartition> &bips);
-void computeDelta(int col, int* active, int len, Bipartition &bip, int &delta, Matrix &input);
+bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2);
+void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips);
+void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, Matrix &input);
 void computeActivePositions(int col, int &l, int *activePositions, Matrix &input);
-void computeBipartitions(vector<Bipartition> &bips);
+void computeBipartitions(vector<vector<int> > &bips);
 bool isIn(int n, int *array, int len);
 void setMatrix(Matrix matrix, int i, int j, int value);
 int getMatrix(Matrix matrix, int i, int j);
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
   Matrix input(n, m);
   Matrix optimum(b, m);
   
-  vector<Bipartition> bips;
+  vector<vector<int> > bips;
 
   computeBipartitions(bips);
 
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
   same way.
 */
 
-bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int *active2, int len2)
+bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2)
 {
   int pos = 0;
   bool flagEqual = true;
@@ -102,7 +102,7 @@ bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int
       if (isIn(active1[i], active2, len2))
         {
           pos = active1[i];
-          if (bip1.at(pos) == bip2.at(pos))
+          if (bip1[pos] == bip2[pos])
             {
               flagComplementary = false;
             } else {
@@ -126,7 +126,7 @@ bool accordance(Bipartition &bip1, int *active1, int len, Bipartition &bip2, int
 */
 
 
-void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<Bipartition> &bips)
+void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips)
 {
   int len1;
   int* activePositionsJ1;
@@ -136,7 +136,7 @@ void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, in
 
   for (int i = 0; i < b; i++)
     {
-      if (accordance(bipJ, activePositionsJ, len, bips.at(i), activePositionsJ1, len1))
+      if (accordance(bipJ, activePositionsJ, len, bips[i], activePositionsJ1, len1))
         {
           if(optimum.getMatrix(i, j - 1) < tempMinimum)
             {
@@ -155,7 +155,7 @@ void computeMinimum(int j, int* activePositionsJ, int len, Bipartition &bipJ, in
   equal to 0, or one 0 and one 1, or both equal to 1) corresponding to the given bipartition.
 */
 
-void computeDelta(int col, int* active, int len, Bipartition &bip, int &delta, Matrix &input)
+void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, Matrix &input)
 {
   //Value for the combination when both the parts are equal to 0
   int sol1 = 0;
@@ -263,9 +263,15 @@ void computeActivePositions(int col, int &l, int *activePositions, Matrix &input
 */
 
 
-void computeBipartitions(vector<Bipartition> &bips)
+void computeBipartitions(vector<vector<int> > &bips)
 {
-  int temp[n];
+  vector<int> temp;
+
+  for(int j = 0; j < n; j++)
+  {
+    temp.push_back(0);
+  }
+
   for (int i = 0; i < expo(2, n); i++)
   {
     for (int j = 0; j < n; j++)
@@ -277,10 +283,7 @@ void computeBipartitions(vector<Bipartition> &bips)
         temp[j] = 1;
       }
     }
-
-    //ERROREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    Bipartition x( temp, n );
-    bips.push_back(x);
+    bips.push_back(temp);
   }
 }
 
