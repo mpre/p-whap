@@ -1,6 +1,10 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include <vector>
+
+using std::vector;
+
 class Matrix 
 {
 
@@ -17,9 +21,11 @@ public:
 
   ~Matrix();
 
-  void setMatrix(int i, int j, int value);
+  void set(int row, int col, int value);
   
-  int getMatrix(int i, int j);
+  int get(int row, int col);
+
+  vector< int > get_col(int index);
 };
 
 #endif

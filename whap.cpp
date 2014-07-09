@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <vector>
+#include <algorithm>
 
 #include "Matrix.hpp"
 #include "Bipartition.hpp"
@@ -11,14 +12,59 @@ using std::vector;
 
 //Definition of the functions
 
-bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2);
-void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips);
-void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, Matrix &input);
-void computeActivePositions(int col, int &l, int *activePositions, Matrix &input);
-void computeBipartitions(vector<vector<int> > &bips);
-bool isIn(int n, int *array, int len);
-void setMatrix(Matrix matrix, int i, int j, int value);
-int getMatrix(Matrix matrix, int i, int j);
+/*
+  Compute  the  intersection  between  act_pos_1 and  act_pos_2  and  build  the
+  corrisponding subsequences on bip1 and bip2.
+
+  Return true if they are equal or complementary.
+  Return false otherwise.
+
+  Additional info:
+  This function check whether the active  positions (its number equal to len) on
+  the bipartition bip1 and  the active positions (its number equal  to len 2) on
+  the bipartition bip2 are bipartited in the same way.
+*/
+bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
+                const vector<bool>& bip2, const vector<int>& act_pos_2);
+
+/*
+  Return the suboptimal value for cbip.
+
+  Additional info:
+  Given the  column j, with  the corresponding  active positions (its  number is
+  equal  to len)  activePoitionsJ and  given the  bipartition bipJ,  we want  to
+  compute minimum  that is  the minimum  value in  a column  j-1 of  the optimum
+  matrix corresponding to a bipartition bip that is in accordance with bipJ.
+*/
+int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
+                   const vector< int >& active_pos, const vector< bool >& cbip,
+                   const vector< vector< bool > >& bip_set);
+
+/*
+  Return the  minimum number of corrections  to turn frag_col into  a homozygous
+  column or a column in accordance to cbip.
+  
+  Additional info:
+  Given a  column col,  its active positions  active with a  length of  len, and
+  given a bipartition bip  we want to compute the minimum  number of changes for
+  the 4  possible combinations (both parts  equal to 0, or  one 0 and one  1, or
+  both equal to 1) corresponding to the given bipartition.
+*/
+int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
+                 const vector< bool >& cbip);
+
+/*
+  Return the active position in frag_col.
+
+  Additional info:
+  Given  a  column j,  this  function  compute  the array  activePositions  that
+  contains all the positions  (i.e. fragments) covered by the column  j and l is
+  the length of this computed array.
+*/
+vector< int > computeActivePositions(const vector< int >& frag_col);
+
+/* Return all the possible bipartitions (max frag_num is 2^64)*/
+void computeBipartitions(vector< vector<bool> >& bips, const int frags_num);
 
 //Global data
 
@@ -43,237 +89,134 @@ int b;       //Number of bipartitions
 
 int main(int argc, char** argv)
 {	
-  int delta;
-  int minimum;
-  int* activePositions;
   int len;
   
   Matrix input(n, m);
   Matrix optimum(b, m);
   
-  vector<vector<int> > bips;
+  vector< vector< bool > > bips;
 
-  computeBipartitions(bips);
+  computeBipartitions(bips, n);
 
-  for (int col = 0; col < m; col++)
+  // Inserire caso base
+  // Per opt calcolare solo delta e riempire la prima colonna
+  for(int col = 1; col < m; col++)
     {
-      computeActivePositions(col, len, activePositions, input);
-      delta = 0;
-      minimum = 0;
+      int delta = 0;   // Local contribution to opt solution
+      int minimum = 0; // Min value of according bipartition in col-1
+      vector< int > act_pos = computeActivePositions(input.get_col(col));
 
-      for(int i = 0; i < b; i++)
+      for(int row = 0; row < b; row++)
         {
-          computeDelta(col, activePositions, len, bips.at(i), delta, input);
-          computeMinimum(col, activePositions, len, bips.at(i), minimum, optimum, input, bips);
+          delta = computeDelta(input.get_col(col), act_pos, bips[row]);
+          //          computeDelta(col, activePositions, len, bips[row], delta, input);
 
-          optimum.setMatrix(i, col, delta + minimum);
+          minimum = computeMinimum(input.get_col(col-1), optimum.get_col(col-1),
+                                   act_pos, bips[row], bips);
+          //          computeMinimum(col, activePositions, len, bips[row], minimum, optimum, input, bips);
+          optimum.set(row, col, delta + minimum);
         }
     }
-  delete activePositions;
 
   return 0;
 }
 
-/*
-  This function check whether the active positions (its number equal to len) on the bipartition bip1
-  and the active positions (its number equal to len 2) on the bipartition bip2 are bipartited in the
-  same way.
-*/
-bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2)
+bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
+                const vector<bool>& bip2, const vector<int>& act_pos_2)
 {
-  int pos = 0;
-  bool flagEqual = true;
-  bool flagComplementary = true;
+  // Compute shared_positions
+  vector< int > shared_pos(std::max(act_pos_1.size(), act_pos_2.size()));
+  vector< int >::iterator it = std::set_intersection( act_pos_1.begin(), act_pos_1.end(),
+                                                      act_pos_2.begin(), act_pos_2.end(),
+                                                      shared_pos.begin() );
+  shared_pos.resize(it - shared_pos.begin());
 
-  for(int i = 0; i < len; i++)
+  bool complemented = true;
+  bool equal = true;
+  for(int i =0; i < shared_pos.size(); ++i)
     {
-      if (isIn(active1[i], active2, len2))
-        {
-          pos = active1[i];
-          if (bip1[pos] == bip2[pos])
-            {
-              flagComplementary = false;
-            } else {
-            flagEqual = false;
-          }
-        }
+      if(bip1[shared_pos[i]] == bip2[shared_pos[i]])
+        complemented = false;
+      else
+        equal = false;
     }
-  if (flagEqual || flagComplementary)
-    {
-      return true;
-    } else {
-    return false;
-  }
+
+  return (equal || complemented);
 }
 
-/*
-  Given the column j, with the corresponding active positions (its number is equal to len) activePoitionsJ
-  and given the bipartition bipJ, we want to compute minimum that is the minimum value in a column j-1 of the
-  optimum matrix corresponding to a bipartition bip that is in accordance with bipJ.
-*/
-void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips)
+int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
+                   const vector< int >& active_pos, const vector< bool >& cbip,
+                   const vector< vector< bool > >& bip_set)
 {
-  int len1;
-  int* activePositionsJ1;
-  int tempMinimum = 0;
+  vector< int > prev_act_pos = computeActivePositions(frag_col);
 
-  computeActivePositions(j-1, len1, activePositionsJ1, input);
+  int minimum = frag_col.size();
 
-  for (int i = 0; i < b; i++)
+  for(int b_index = 0; b_index < bip_set.size(); b_index++)
+    if(accordance(cbip, active_pos, bip_set[b_index], prev_act_pos))
+      if(opt_col[b_index] < minimum)
+        minimum = opt_col[b_index];
+
+  return minimum;
+}
+
+int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
+                 const vector< bool >& cbip)
+{
+  enum {OO, OI, IO, II};
+  vector< int > solutions(II, 0);
+
+  for(int p = 0; p < act_pos.size(); ++p)
     {
-      if (accordance(bipJ, activePositionsJ, len, bips[i], activePositionsJ1, len1))
+      if(cbip[act_pos[p]] == false)
         {
-          if(optimum.getMatrix(i, j - 1) < tempMinimum)
+          // If the element active[i] is in the part 0 in the bipartition bip
+          if(frag_col[act_pos[p]] == 1)
             {
-              tempMinimum = optimum.getMatrix(i, j - 1);
+              ++solutions[OO];
+              ++solutions[OI];
+            }
+          else
+            {
+              ++solutions[IO];
+              ++solutions[II];
             }
         }
-    }
-  minimum = tempMinimum;
-}
-
-/*
-  Given a column col, its active positions active with a length of len, and given a bipartition
-  bip we want to compute the minimum number of changes for the 4 possible combinations (both parts
-  equal to 0, or one 0 and one 1, or both equal to 1) corresponding to the given bipartition.
-*/
-void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, Matrix &input)
-{
-  //Value for the combination when both the parts are equal to 0
-  int sol1 = 0;
-  //Value for the combination when part 0 is equal to 0 and part 1 equal to 1
-  int sol2 = 0;
-  //Value for the combination when part 0 is equal to 1 and part 1 equal to 0
-  int sol3 = 0;
-  //Value for the combination when both the parts are equal to 1
-  int sol4 = 0;
-
-  for(int i = 0; i < len; i++)
-    {
-      //If the element active[i] is in the part 0 in the bipartition bip
-      if (bip.at(active[i]) == 0)
+      else
         {
-          if (input.getMatrix(active[i], col) == 1) {
-            sol1++;
-            sol2++;
+          // If the element active[i] is in the part 1 in the bipartition bip
+          if (frag_col[act_pos[p]] == 1) {
+            ++solutions[OO];
+            ++solutions[IO];
           } else {
-            sol3++;
-            sol4++;
+            ++solutions[OI];
+            ++solutions[II];
           }
-          //If the element active[i] is in the part 1 in the bipartition bip
-        } else {
-        if (input.getMatrix(active[i], col) == 1) {
-          sol1++;
-          sol3++;
-        } else {
-          sol2++;
-          sol4++;
         }
-      }
     }
-  
-  if (sol1 < sol2) {
-    if (sol1 < sol3) {
-      if (sol1 < sol4) {
-        delta = sol1;
-      } else {
-        delta = sol4;
-      }
-    } else {
-      if (sol3 < sol4) {
-        delta = sol3;
-      } else {
-        delta = sol4;
-      }
-    }
-  } else {
-    if (sol2 < sol3) {
-      if (sol2 < sol4) {
-        delta = sol2;
-      } else {
-        delta = sol4;
-      }
-    } else {
-      if (sol3 < sol4) {
-        delta = sol3;
-      } else {
-        delta = sol4;
-      }
-    }
-  }
+
+  return std::min( std::min(solutions[OO], solutions[OI]),
+                   std::min(solutions[IO], solutions[II]));
 }
 
-/*
-  Given a column j, this function compute the array activePositions that contains
-  all the positions (i.e. fragments) covered by the column j and l is the length
-  of this computed array.
-*/
-void computeActivePositions(int col, int &l, int *activePositions, Matrix &input) {
-  int len = 0;
-  int temp;
-
-  for (int i = 0; i < m; i++) {
-    temp = input.getMatrix(i, col);
-    if(temp == 0 || temp == 1) {
-      len++;
-    }
-  }
-
-  int tempActive[len];
-  int iter = 0;
-  
-  for (int i = 0; i < m; i++) {
-    temp = input.getMatrix(i, col);
-    if(temp == 0 || temp == 1) {
-      tempActive[iter] = i;
-      iter++;
-    }
-  }
-  
-  l = len;
-  activePositions = &tempActive[len];
-}
-
-/*
-  The function that computes the set of all the possible bipartitions of all the fragments.
-*/
-void computeBipartitions(vector<vector<int> > &bips)
+vector< int > computeActivePositions(const vector< int >& frag_col)
 {
-  vector<int> temp;
-
-  for(int j = 0; j < n; j++)
-  {
-    temp.push_back(0);
-  }
-
-  for (int i = 0; i < pow(2, n); i++)
-  {
-    for (int j = 0; j < n; j++)
-    {
-      if (((1 << j) & i) == 0)
-      {
-        temp[j] = 0;
-      } else {
-        temp[j] = 1;
-      }
-    }
-    bips.push_back(temp);
-  }
+  vector< int > act_pos;
+  for(int i =0; i == frag_col.size(); ++i)
+    if(frag_col[ i ] != -1)
+      act_pos.push_back(i);
 }
 
-/*
-  Function that returns true if and only if the array "array" with a length equal to len
-  contains the value n.
-*/
-bool isIn(int n, int *array, int len)
+void computeBipartitions(vector< vector<bool> > &bips, int frags_num)
 {
-  for(int i = 0; i < len; i++)
+  for(int i =0; i < pow(2, frags_num); ++i)
     {
-      if (n == array[len])
+      vector< bool > cbip(frags_num, false);
+      for(int j =0; j < frags_num; ++j)
         {
-          return true;
+          cbip[j] = (i & (1 << j));
         }
+      bips.push_back(cbip);
     }
-  return false;
 }
 
