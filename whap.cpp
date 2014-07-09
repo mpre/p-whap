@@ -8,9 +8,7 @@
 
 using std::vector;
 
-
 //Definition of the functions
-
 
 bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2);
 void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips);
@@ -22,7 +20,6 @@ void setMatrix(Matrix matrix, int i, int j, int value);
 int getMatrix(Matrix matrix, int i, int j);
 int expo(int base, int exp);
 
-
 //Global data
 
 /*
@@ -33,8 +30,6 @@ int expo(int base, int exp);
 int n;       //Number of fragments
 int m;       //Number of columns
 
-
-
 /*
   This is the matrix (b x m) that will contain the suboptimal structure, such that b is the number
   of all the possible bipartitions (notice that b = 2^(n) where n is still the number of fragments)
@@ -44,11 +39,7 @@ int m;       //Number of columns
 */
 int b;       //Number of bipartitions
 
-
-
 //MAIN
-
-
 
 int main(int argc, char** argv)
 {	
@@ -64,7 +55,6 @@ int main(int argc, char** argv)
 
   computeBipartitions(bips);
 
-
   for (int col = 0; col < m; col++)
     {
       computeActivePositions(col, len, activePositions, input);
@@ -78,19 +68,17 @@ int main(int argc, char** argv)
 
           optimum.setMatrix(i, col, delta + minimum);
         }
-
     }
   delete activePositions;
-  
-}
 
+  return 0;
+}
 
 /*
   This function check whether the active positions (its number equal to len) on the bipartition bip1
   and the active positions (its number equal to len 2) on the bipartition bip2 are bipartited in the
   same way.
 */
-
 bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int *active2, int len2)
 {
   int pos = 0;
@@ -118,14 +106,11 @@ bool accordance(vector<int> &bip1, int *active1, int len, vector<int> &bip2, int
   }
 }
 
-
 /*
   Given the column j, with the corresponding active positions (its number is equal to len) activePoitionsJ
   and given the bipartition bipJ, we want to compute minimum that is the minimum value in a column j-1 of the
   optimum matrix corresponding to a bipartition bip that is in accordance with bipJ.
 */
-
-
 void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, int &minimum, Matrix &optimum, Matrix &input, vector<vector<int> > &bips)
 {
   int len1;
@@ -144,17 +129,14 @@ void computeMinimum(int j, int* activePositionsJ, int len, vector<int> &bipJ, in
             }
         }
     }
-
   minimum = tempMinimum;
 }
-
 
 /*
   Given a column col, its active positions active with a length of len, and given a bipartition
   bip we want to compute the minimum number of changes for the 4 possible combinations (both parts
   equal to 0, or one 0 and one 1, or both equal to 1) corresponding to the given bipartition.
 */
-
 void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, Matrix &input)
 {
   //Value for the combination when both the parts are equal to 0
@@ -166,9 +148,7 @@ void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, M
   //Value for the combination when both the parts are equal to 1
   int sol4 = 0;
 
-  int i = 0;
-
-  for(i = 0; i < len; i++)
+  for(int i = 0; i < len; i++)
     {
       //If the element active[i] is in the part 0 in the bipartition bip
       if (bip.at(active[i]) == 0)
@@ -223,14 +203,11 @@ void computeDelta(int col, int* active, int len, vector<int> &bip, int &delta, M
   }
 }
 
-
 /*
   Given a column j, this function compute the array activePositions that contains
   all the positions (i.e. fragments) covered by the column j and l is the length
   of this computed array.
 */
-
-
 void computeActivePositions(int col, int &l, int *activePositions, Matrix &input) {
   int len = 0;
   int temp;
@@ -257,12 +234,9 @@ void computeActivePositions(int col, int &l, int *activePositions, Matrix &input
   activePositions = &tempActive[len];
 }
 
-
 /*
   The function that computes the set of all the possible bipartitions of all the fragments.
 */
-
-
 void computeBipartitions(vector<vector<int> > &bips)
 {
   vector<int> temp;
@@ -287,14 +261,10 @@ void computeBipartitions(vector<vector<int> > &bips)
   }
 }
 
-
-
-
 /*
   Function that returns true if and only if the array "array" with a length equal to len
   contains the value n.
 */
-
 bool isIn(int n, int *array, int len)
 {
   for(int i = 0; i < len; i++)
@@ -307,8 +277,6 @@ bool isIn(int n, int *array, int len)
   return false;
 }
 
-
-
 int expo(int base, int exp)
 {
   if (exp == 0)
@@ -318,5 +286,4 @@ int expo(int base, int exp)
     return base * expo(base, exp - 1);
   }
 }
-
 
