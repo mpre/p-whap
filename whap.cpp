@@ -18,7 +18,6 @@ void computeBipartitions(vector<vector<int> > &bips);
 bool isIn(int n, int *array, int len);
 void setMatrix(Matrix matrix, int i, int j, int value);
 int getMatrix(Matrix matrix, int i, int j);
-int expo(int base, int exp);
 
 //Global data
 
@@ -246,7 +245,7 @@ void computeBipartitions(vector<vector<int> > &bips)
     temp.push_back(0);
   }
 
-  for (int i = 0; i < expo(2, n); i++)
+  for (int i = 0; i < pow(2, n); i++)
   {
     for (int j = 0; j < n; j++)
     {
@@ -275,15 +274,5 @@ bool isIn(int n, int *array, int len)
         }
     }
   return false;
-}
-
-int expo(int base, int exp)
-{
-  if (exp == 0)
-    {
-      return 1;
-    } else {
-    return base * expo(base, exp - 1);
-  }
 }
 
