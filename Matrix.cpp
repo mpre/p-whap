@@ -1,5 +1,12 @@
 #include <Matrix.hpp>  
 
+Matrix::Matrix()
+{
+  rows = 0;
+  columns = 0;
+  matrix = 0;
+}
+
 Matrix::Matrix(int rows_in, int columns_in)
 {
   rows = rows_in;
@@ -28,4 +35,14 @@ vector< int > Matrix::get_col(int index)
   for(int p = index*rows; p < (index + 1)*rows; ++p)
     currentcol.push_back(matrix[p]);
   return currentcol;
+}
+
+int Matrix::cols_num() const
+{
+  return columns;
+}
+
+int Matrix::rows_num() const
+{
+  return rows;
 }

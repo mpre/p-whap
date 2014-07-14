@@ -17,6 +17,8 @@ private:
 
 public:
   
+  Matrix();
+
   Matrix(int rows_in, int columns_in);
 
   ~Matrix();
@@ -26,6 +28,10 @@ public:
   int get(int row, int col);
 
   vector< int > get_col(int index);
+
+  int cols_num() const;
+
+  int rows_num() const;
 };
 
 #endif
