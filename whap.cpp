@@ -4,6 +4,8 @@
 #include <math.h>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
 
 #include "Matrix.hpp"
 #include "Bipartition.hpp"
@@ -87,13 +89,47 @@ int b;       //Number of bipartitions
 
 //MAIN
 
+void readMatrix(Matrix& input, std::ifstream& ifs)
+{
+  for(int row =0; row < input.rows_num(); ++row)
+    for(int col =0; col < input.cols_num(); ++col)
+      {
+        short t;
+        ifs.read((char *)&t, sizeof(short));
+        input.set(row, col, t);
+      }
+}
+
 int main(int argc, char** argv)
 {	
   int len;
+
+  std::ifstream ifs(argv[1], std::ios_base::binary);
+  ifs.read((char *)&n, sizeof(int));
+  ifs.read((char *)&m, sizeof(int));
+  std::cout << "Nrows : " << n << std::endl;
+  std::cout << "Ncols : " << m << std::endl;
   
   Matrix input(n, m);
+  readMatrix(input, ifs);
+  ifs.close();
+
+  // TEMPORARY: Print input matrix
+  for(int row =0; row < input.rows_num(); ++row)
+    {
+      for(int col =0; col < input.cols_num(); ++col)
+        {
+          if(input.get(row, col) != -1)
+            std::cout << " " << input.get(row, col);
+          else
+            std::cout << " -";
+        }
+      std::cout << std::endl;
+    }
+  return -1;
+
   Matrix optimum(b, m);
-  
+
   vector< vector< bool > > bips;
 
   computeBipartitions(bips, n);
@@ -195,6 +231,7 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
         }
     }
 
+  // FIXME: Use min_element instead
   return std::min( std::min(solutions[OO], solutions[OI]),
                    std::min(solutions[IO], solutions[II]));
 }

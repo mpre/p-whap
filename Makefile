@@ -7,9 +7,11 @@ WHAP_DEPS=$(OBJ_DIR)whap.o \
 	$(OBJ_DIR)Matrix.o \
 	$(OBJ_DIR)Bipartition.o
 
+INPUTGEN_DEPS=$(OBJ_DIR)inputgen.o
+
 INCLUDES=-I.
 
-all: whap
+all: whap inputgen
 
 ${OBJ_DIR}%.o: %.cpp
 	@echo '* Compiling $<'
@@ -20,6 +22,14 @@ ${OBJ_DIR}%.o: %.cpp
 whap: $(BIN_DIR)whap
 
 $(BIN_DIR)whap: $(WHAP_DEPS)
+	@echo '* Linking $@'
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+.PHONY: inputgen
+inputgen: $(BIN_DIR)inputgen
+
+$(BIN_DIR)inputgen: $(INPUTGEN_DEPS)
 	@echo '* Linking $@'
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
