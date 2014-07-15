@@ -6,11 +6,12 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <bitset>
 
 #include "Matrix.hpp"
 #include "Bipartition.hpp"
 
-using std::vector;
+using namespace std;
 
 //Definition of the functions
 
@@ -66,7 +67,18 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
 vector< int > computeActivePositions(const vector< int >& frag_col);
 
 /* Return all the possible bipartitions (max frag_num is 2^64)*/
-void computeBipartitions(vector< vector<bool> >& bips, const int frags_num);
+vector< vector< bool > > computeBipartitions(const int frags_num);
+
+// Support functions
+
+/* Read matrix from binary ifstream */
+void readMatrix(Matrix& input, ifstream& ifs);
+
+/* Print a Matrix instance */
+void printMatrix(Matrix& in);
+
+/* Print bipartition */
+void printBipartition(vector< bool >& bip);
 
 //Global data
 
@@ -89,26 +101,15 @@ int b;       //Number of bipartitions
 
 //MAIN
 
-void readMatrix(Matrix& input, std::ifstream& ifs)
-{
-  for(int row =0; row < input.rows_num(); ++row)
-    for(int col =0; col < input.cols_num(); ++col)
-      {
-        short t;
-        ifs.read((char *)&t, sizeof(short));
-        input.set(row, col, t);
-      }
-}
-
 int main(int argc, char** argv)
 {	
   int len;
 
-  std::ifstream ifs(argv[1], std::ios_base::binary);
+  ifstream ifs(argv[1], ios_base::binary);
   ifs.read((char *)&n, sizeof(int));
   ifs.read((char *)&m, sizeof(int));
-  std::cout << "Nrows : " << n << std::endl;
-  std::cout << "Ncols : " << m << std::endl;
+  cerr << "Nrows : " << n << endl;
+  cerr << "Ncols : " << m << endl;
   
   Matrix input(n, m);
   readMatrix(input, ifs);
@@ -120,39 +121,64 @@ int main(int argc, char** argv)
       for(int col =0; col < input.cols_num(); ++col)
         {
           if(input.get(row, col) != -1)
-            std::cout << " " << input.get(row, col);
+            cout << " " << input.get(row, col);
           else
-            std::cout << " -";
+            cout << " -";
         }
-      std::cout << std::endl;
+      cout << endl;
     }
-  return -1;
+  cerr << "Computing bipartitions...";
+  vector< vector< bool > > bips = computeBipartitions(n);
+  cerr << "done." << endl;
 
-  Matrix optimum(b, m);
+  for(int i =0; i < bips.size(); ++i)
+    {
+      cerr << "Bipartition #" << i << " = ";
+      printBipartition(bips[i]);
+      cerr << endl;
+    }
 
-  vector< vector< bool > > bips;
+  Matrix optimum(bips.size(), m);
 
-  computeBipartitions(bips, n);
+  cerr << "Number of bipartitions : " << bips.size() << endl;
+  
+  for(int i =0; i < bips.size(); ++i)
+    {
+      vector< int > act_pos = computeActivePositions(input.get_col(0));
+      int opt_val = computeDelta(input.get_col(0), act_pos, bips[i]);
+      optimum.set(i, 0, opt_val);
+    }
 
   // Inserire caso base
   // Per opt calcolare solo delta e riempire la prima colonna
-  for(int col = 1; col < m; col++)
+  for(int col = 1; col < input.cols_num(); col++)
     {
+      cerr << "Step " << col << "/" << input.cols_num() << endl;
       int delta = 0;   // Local contribution to opt solution
       int minimum = 0; // Min value of according bipartition in col-1
       vector< int > act_pos = computeActivePositions(input.get_col(col));
 
-      for(int row = 0; row < b; row++)
+      for(int row = 0; row < optimum.rows_num(); row++)
         {
           delta = computeDelta(input.get_col(col), act_pos, bips[row]);
-          //          computeDelta(col, activePositions, len, bips[row], delta, input);
-
+          cerr << "Bip #" << row << " in accordance with: ";
           minimum = computeMinimum(input.get_col(col-1), optimum.get_col(col-1),
                                    act_pos, bips[row], bips);
-          //          computeMinimum(col, activePositions, len, bips[row], minimum, optimum, input, bips);
+          cerr << endl;
           optimum.set(row, col, delta + minimum);
         }
     }
+
+  //  printMatrix(optimum);
+
+  vector< int > last_col = optimum.get_col(m -1);
+  int best_index = min_element(last_col.begin(), last_col.end()) - last_col.begin();
+  cerr << "Optimum is " << *min_element(last_col.begin(), last_col.end())
+       << " found at position "
+       << best_index << endl;
+
+  printBipartition(bips[best_index]);
+  cerr << endl;
 
   return 0;
 }
@@ -161,10 +187,10 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
                 const vector<bool>& bip2, const vector<int>& act_pos_2)
 {
   // Compute shared_positions
-  vector< int > shared_pos(std::max(act_pos_1.size(), act_pos_2.size()));
-  vector< int >::iterator it = std::set_intersection( act_pos_1.begin(), act_pos_1.end(),
-                                                      act_pos_2.begin(), act_pos_2.end(),
-                                                      shared_pos.begin() );
+  vector< int > shared_pos(max(act_pos_1.size(), act_pos_2.size()));
+  vector< int >::iterator it = set_intersection( act_pos_1.begin(), act_pos_1.end(),
+                                                 act_pos_2.begin(), act_pos_2.end(),
+                                                 shared_pos.begin() );
   shared_pos.resize(it - shared_pos.begin());
 
   bool complemented = true;
@@ -190,8 +216,11 @@ int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
 
   for(int b_index = 0; b_index < bip_set.size(); b_index++)
     if(accordance(cbip, active_pos, bip_set[b_index], prev_act_pos))
-      if(opt_col[b_index] < minimum)
-        minimum = opt_col[b_index];
+      {
+        cerr << b_index << " ";
+        if(opt_col[b_index] < minimum)
+          minimum = opt_col[b_index];
+      }
 
   return minimum;
 }
@@ -204,48 +233,49 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
 
   for(int p = 0; p < act_pos.size(); ++p)
     {
-      if(cbip[act_pos[p]] == false)
+      if(cbip[act_pos[p]] == false) // Posizione della bipartizione attiva a 0
         {
           // If the element active[i] is in the part 0 in the bipartition bip
           if(frag_col[act_pos[p]] == 1)
             {
-              ++solutions[OO];
-              ++solutions[OI];
+              solutions[OO] += 1;
+              solutions[OI] += 1;
             }
           else
             {
-              ++solutions[IO];
-              ++solutions[II];
+              solutions[IO] += 1;
+              solutions[II] += 1;
             }
         }
       else
         {
           // If the element active[i] is in the part 1 in the bipartition bip
           if (frag_col[act_pos[p]] == 1) {
-            ++solutions[OO];
-            ++solutions[IO];
+            solutions[OO] += 1;
+            solutions[IO] += 1;
           } else {
-            ++solutions[OI];
-            ++solutions[II];
+            solutions[OI] += 1;
+            solutions[II] += 1;
           }
         }
     }
 
-  // FIXME: Use min_element instead
-  return std::min( std::min(solutions[OO], solutions[OI]),
-                   std::min(solutions[IO], solutions[II]));
+  return *min_element(solutions.begin(), solutions.end());
 }
 
 vector< int > computeActivePositions(const vector< int >& frag_col)
 {
   vector< int > act_pos;
-  for(int i =0; i == frag_col.size(); ++i)
+  for(int i =0; i < (int)frag_col.size(); ++i)
     if(frag_col[ i ] != -1)
       act_pos.push_back(i);
+
+  return act_pos;
 }
 
-void computeBipartitions(vector< vector<bool> > &bips, int frags_num)
+vector< vector< bool > > computeBipartitions(const int frags_num)
 {
+  vector< vector< bool > > bips;
   for(int i =0; i < pow(2, frags_num); ++i)
     {
       vector< bool > cbip(frags_num, false);
@@ -255,5 +285,35 @@ void computeBipartitions(vector< vector<bool> > &bips, int frags_num)
         }
       bips.push_back(cbip);
     }
+  return bips;
 }
 
+void printMatrix(Matrix& in)
+{
+  for(int row = 0; row < in.rows_num(); ++row)
+    {
+      cerr << bitset<8>(row);
+      for(int col =0; col < in.cols_num(); ++col)
+        {
+          cerr << in.get(row, col) << " ";
+        }
+      cerr << endl;
+    }
+}
+
+void readMatrix(Matrix& input, ifstream& ifs)
+{
+  for(int row =0; row < input.rows_num(); ++row)
+    for(int col =0; col < input.cols_num(); ++col)
+      {
+        short t;
+        ifs.read((char *)&t, sizeof(short));
+        input.set(row, col, t);
+      }
+}
+
+void printBipartition(vector< bool >& bip)
+{
+  for(vector<bool>::iterator it = bip.begin(); it != bip.end(); ++it)
+    cerr << *it;
+}
