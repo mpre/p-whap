@@ -75,7 +75,7 @@ vector< vector< bool > > computeBipartitions(const int frags_num);
 void readMatrix(Matrix& input, ifstream& ifs);
 
 /* Print a Matrix instance */
-void printMatrix(Matrix& in);
+void printMatrix(Matrix& in, vector< vector< bool > >& bips);
 
 /* Print bipartition */
 void printBipartition(vector< bool >& bip);
@@ -103,11 +103,11 @@ int main(int argc, char** argv)
       for(int col =0; col < input.cols_num(); ++col)
         {
           if(input.get(row, col) != -1)
-            cout << " " << input.get(row, col);
+            cerr << " " << input.get(row, col);
           else
-            cout << " -";
+            cerr << " -";
         }
-      cout << endl;
+      cerr << endl;
     }
   cerr << "Computing bipartitions...";
   vector< vector< bool > > bips = computeBipartitions(n);
@@ -151,7 +151,7 @@ int main(int argc, char** argv)
         }
     }
 
-  //  printMatrix(optimum);
+  printMatrix(optimum, bips);
 
   vector< int > last_col = optimum.get_col(m -1);
   int best_index = min_element(last_col.begin(), last_col.end()) - last_col.begin();
@@ -270,11 +270,12 @@ vector< vector< bool > > computeBipartitions(const int frags_num)
   return bips;
 }
 
-void printMatrix(Matrix& in)
+void printMatrix(Matrix& in, vector< vector< bool > >& bips)
 {
   for(int row = 0; row < in.rows_num(); ++row)
     {
-      cerr << bitset<8>(row);
+      printBipartition(bips[row]);
+      cerr << ": ";
       for(int col =0; col < in.cols_num(); ++col)
         {
           cerr << in.get(row, col) << " ";
