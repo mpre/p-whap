@@ -80,30 +80,12 @@ void printMatrix(Matrix& in);
 /* Print bipartition */
 void printBipartition(vector< bool >& bip);
 
-//Global data
-
-/*
-  This (n x m) is the input matrix, such that it contains n fragments that cover m SNP positions
-  (i.e. each position is covered by at least one fragment). Each row is a fragment and each column
-  is a SNP position.
-*/
-int n;       //Number of fragments
-int m;       //Number of columns
-
-/*
-  This is the matrix (b x m) that will contain the suboptimal structure, such that b is the number
-  of all the possible bipartitions (notice that b = 2^(n) where n is still the number of fragments)
-  and m is the number of positions. For each bipartition i and each position j, then 
-  optimum[i, j] is equal to the optimal solution for the columns 1..j using the bipartition i on
-  the last column j.
-*/
-int b;       //Number of bipartitions
-
 //MAIN
 
 int main(int argc, char** argv)
 {	
-  int len;
+  int n;       //Number of fragments
+  int m;       //Number of columns
 
   ifstream ifs(argv[1], ios_base::binary);
   ifs.read((char *)&n, sizeof(int));
