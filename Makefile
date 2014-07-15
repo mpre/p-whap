@@ -9,6 +9,8 @@ WHAP_DEPS=$(OBJ_DIR)whap.o \
 
 INPUTGEN_DEPS=$(OBJ_DIR)inputgen.o
 
+CXXFLAGS=-O3 -g
+
 INCLUDES=-I.
 
 all: whap inputgen
