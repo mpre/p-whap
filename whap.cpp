@@ -88,7 +88,7 @@ int main(int argc, char** argv)
   int my_rank, numprocs;
   int n;       //Number of fragments
   int m;       //Number of columns
-  vector< vector< bool > > bips;
+
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
@@ -139,7 +139,56 @@ int main(int argc, char** argv)
       vector<int> send_opt;  //Column split
 
 
-      for (int col = 0; col < input.cols_num(); col++)
+      //Compute length of the intervals
+
+      int lengths[numprocs];
+      
+      for (int i = 1; i < numprocs; i++)
+        {
+          lengths[i] = (numprocs - 1) / k;
+          if ( i < (numprocs - 1) % k)
+            {
+              ++lengths[i];
+            }
+        }
+
+      //BASE CASE
+      
+
+      MPI_Bcast(&(input.get_col(0)).front(), input.get_col(0).size(), MPI_INTEGER, 0, MPI_COMM_WORLD);
+
+      //Merge of results
+      MPI_Status status;
+          
+      //Initializing the optimum column to the maximum value n
+      for(int i = 0; i < bips_size; i++)
+        {
+          optimum.set(i, 0, n);
+        }
+
+
+       //Receive the result from any proc
+      for(dest = 1; dest < numprocs; dest++)
+        {
+          int buf[bips_size];
+          MPI_Recv(buf, bips_size, MPI_INTEGER, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+          vector<int> result(buf, buf + bips_size);
+          
+          //Update column of optimum
+          for(int i = 0; i < bips.size(); i++)
+            {
+              if(result[i] < optimum.get(i, 0))
+                {
+                  optimum.set(i, 0, result[i]);
+                }
+            }
+        }
+
+      
+
+
+      //ITERATIVE STEPS
+      for (int col = 1; col < input.cols_num(); col++)
         {  
           count = 0;
           dest = 1;
@@ -154,21 +203,16 @@ int main(int argc, char** argv)
             {
               send_opt.push_back(optimum.get(i, col - 1));
               count++;
-              std::cout << "sei scemo?";
-              if (count == interval || i == bips_size - 1)
+              if (count == length[dest])
                 {
-                  std::cout << "MASTER ENTRATO! :   " << dest << std::endl;
-                  count = 0;
-                  std::cout << "Io master sto cercando di spedire  :   " << dest << std::endl;
                   MPI_Send(&send_opt.front(), send_opt.size(), MPI_INTEGER, dest, 0, MPI_COMM_WORLD);
-                  std::cout << "Io master ho spedito a  :   " << dest << std::endl;
                   dest++;
+                  count = 0;
                   send_opt.clear();
                 }
             }
 
           //Merge of results
-          MPI_Status status;
           
           //Initializing the optimum column to the maximum value n
           for(int i = 0; i < bips_size; i++)
@@ -208,6 +252,7 @@ int main(int argc, char** argv)
     } else { //PROCS
 
     MPI_Status status;
+    vector< vector< bool > > bips;
 
     //Each proc receive the number of fragments and columns
     int result[2];
@@ -233,8 +278,18 @@ int main(int argc, char** argv)
           cerr << endl;
         }
       }
-    //Length of the interval
-    int interval = bips.size() / (numprocs - 1);
+    //Compute length of the intervals
+
+    int lengths[numprocs];
+      
+    for (int i = 1; i < numprocs; i++)
+      {
+        lengths[i] = (numprocs - 1) / k;
+        if ( i < (numprocs - 1) % k)
+          {
+            ++lengths[i];
+          }
+      }
         
     //Resulting vector
     vector<int> optimum_col_new;
@@ -256,12 +311,8 @@ int main(int argc, char** argv)
       {
         optimum_col_new.push_back(n);
       }
-        
-    //Receive the optimum value for the previous step
-    int buf2[bips.size()];
-    MPI_Recv(buf2, bips.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-    vector<int> optimum_fragment(buf2, buf2 + bips.size());
-         
+
+    //Computing Case Base values
     for(int row = 0; row < bips.size(); row++)
       {
         delta = computeDelta(input, act_pos, bips[row]);
@@ -296,6 +347,7 @@ int main(int argc, char** argv)
           }
 
         //Receive the optimum value for the previous step
+        int buf2[bips.size()];
         MPI_Recv(buf2, bips.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
         vector<int> optimum_fragment(buf2, buf2 + bips.size());
             
