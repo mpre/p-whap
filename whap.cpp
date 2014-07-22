@@ -7,7 +7,6 @@
 #include <fstream>
 #include <iostream>
 #include <bitset>
-#include <mpi.h>
 
 #include "Matrix.hpp"
 #include "Bipartition.hpp"
@@ -85,237 +84,84 @@ void printBipartition(vector< bool >& bip);
 
 int main(int argc, char** argv)
 {	
-  int my_rank, numprocs;
   int n;       //Number of fragments
   int m;       //Number of columns
-  vector< vector< bool > > bips;
 
-  MPI_Init(&argc, &argv);
-  MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
-
-  if (my_rank == 0)
-    {
-      ifstream ifs(argv[1], ios_base::binary);
-      ifs.read((char *)&n, sizeof(int));
-      ifs.read((char *)&m, sizeof(int));
-      cerr << "Nrows : " << n << endl;
-      cerr << "Ncols : " << m << endl;
+  ifstream ifs(argv[1], ios_base::binary);
+  ifs.read((char *)&n, sizeof(int));
+  ifs.read((char *)&m, sizeof(int));
+  cerr << "Nrows : " << n << endl;
+  cerr << "Ncols : " << m << endl;
   
-      Matrix input(n, m);
-      readMatrix(input, ifs);
-      ifs.close();
+  Matrix input(n, m);
+  readMatrix(input, ifs);
+  ifs.close();
 
-      // TEMPORARY: Print input matrix
-      for(int row =0; row < input.rows_num(); ++row)
+  // TEMPORARY: Print input matrix
+  for(int row =0; row < input.rows_num(); ++row)
+    {
+      for(int col =0; col < input.cols_num(); ++col)
         {
-          for(int col =0; col < input.cols_num(); ++col)
-            {
-              if(input.get(row, col) != -1)
-                cerr << " " << input.get(row, col);
-              else
-                cerr << " -";
-            }
-          cerr << endl;
+          if(input.get(row, col) != -1)
+            cerr << " " << input.get(row, col);
+          else
+            cerr << " -";
         }
+      cerr << endl;
+    }
+  cerr << "Computing bipartitions...";
+  vector< vector< bool > > bips = computeBipartitions(n);
+  cerr << "done." << endl;
 
-      //Master sends to all the number of fragments and columns
-      int send_nm[2];
-      send_nm[0] = n;
-      send_nm[1] = m;
+  for(int i =0; i < bips.size(); ++i)
+    {
+      cerr << "Bipartition #" << i << " = ";
+      printBipartition(bips[i]);
+      cerr << endl;
+    }
 
-      MPI_Bcast(send_nm, 2, MPI_INTEGER, 0,  MPI_COMM_WORLD);
+  Matrix optimum(bips.size(), m);
 
+  cerr << "Number of bipartitions : " << bips.size() << endl;
+  
+  for(int i =0; i < bips.size(); ++i)
+    {
+      vector< int > act_pos = computeActivePositions(input.get_col(0));
+      int opt_val = computeDelta(input.get_col(0), act_pos, bips[i]);
+      optimum.set(i, 0, opt_val);
+    }
 
-      int bips_size = pow(2, n);
+  // Inserire caso base
+  // Per opt calcolare solo delta e riempire la prima colonna
+  for(int col = 1; col < input.cols_num(); col++)
+    {
+      cerr << "Step " << col << "/" << input.cols_num() << endl;
+      int delta = 0;   // Local contribution to opt solution
+      int minimum = 0; // Min value of according bipartition in col-1
+      vector< int > act_pos = computeActivePositions(input.get_col(col));
 
-      Matrix optimum(bips.size(), m);
-
-      cerr << "Number of bipartitions : " << bips_size << endl;
-   
-      int interval = bips_size / (numprocs - 1); //Size of the column split
-      int count = 0;
-      int dest = 1;  //Rank of the receiver
-      vector<int> send_opt;  //Column split
-
-
-      for (int col = 0; col < input.cols_num(); col++)
-        {  
-          count = 0;
-          dest = 1;
-          send_opt.clear();
-
-          //Send the input column col to all
-          MPI_Bcast(&(input.get_col(col)).front(), input.get_col(col).size(), MPI_INTEGER, 0, MPI_COMM_WORLD);
-          
-          //Send to each proc the corresponding split of optimum
-          //CHECK THIS CAREFULLY
-          for(int i = 0; i < bips_size; i++)
-            {
-              send_opt.push_back(optimum.get(i, col - 1));
-              count++;
-              std::cout << "sei scemo?";
-              if (count == interval || i == bips_size - 1)
-                {
-                  std::cout << "MASTER ENTRATO! :   " << dest << std::endl;
-                  count = 0;
-                  std::cout << "Io master sto cercando di spedire  :   " << dest << std::endl;
-                  MPI_Send(&send_opt.front(), send_opt.size(), MPI_INTEGER, dest, 0, MPI_COMM_WORLD);
-                  std::cout << "Io master ho spedito a  :   " << dest << std::endl;
-                  dest++;
-                  send_opt.clear();
-                }
-            }
-
-          //Merge of results
-          MPI_Status status;
-          
-          //Initializing the optimum column to the maximum value n
-          for(int i = 0; i < bips_size; i++)
-            {
-              optimum.set(i, col, n);
-            }
-          
-          //Receive the result from any proc
-          for(dest = 1; dest < numprocs; dest++)
-            {
-              int buf[bips_size];
-              MPI_Recv(buf, bips_size, MPI_INTEGER, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-              vector<int> result(buf, buf + bips_size);
-
-              //Update column of optimum
-              for(int i = 0; i < bips.size(); i++)
-                {
-                  if(result[i] < optimum.get(i, col))
-                    {
-                      optimum.set(i, col, result[i]);
-                    }
-                }
-            }
-          printMatrix(optimum, bips);
-
-          vector< int > last_col = optimum.get_col(m -1);
-          int best_index = min_element(last_col.begin(), last_col.end()) - last_col.begin();
-          cerr << "Optimum is " << *min_element(last_col.begin(), last_col.end())
-               << " found at position "
-               << best_index << endl;
-
-          printBipartition(bips[best_index]);
-          cerr << endl;
-        }
-
-
-    } else { //PROCS
-
-    MPI_Status status;
-
-    //Each proc receive the number of fragments and columns
-    int result[2];
-    MPI_Bcast(result, 2, MPI_INTEGER, 0,  MPI_COMM_WORLD);
-    
-    n = result[0];
-    m = result[1];
-
-        
-    //Just proc 1 writes on log file in this case
-    if (my_rank == 1)
-        cerr << "Computing bipartitions...";
-    bips = computeBipartitions(n);
-    if (my_rank == 1)
-      cerr << "done." << endl;
-
-    if (my_rank == 1)
-      {
-        for(int i =0; i < bips.size(); ++i)
+      for(int row = 0; row < optimum.rows_num(); row++)
         {
-          cerr << "Bipartition #" << i << " = ";
-          printBipartition(bips[i]);
+          delta = computeDelta(input.get_col(col), act_pos, bips[row]);
+          cerr << "Bip #" << row << " in accordance with: ";
+          minimum = computeMinimum(input.get_col(col-1), optimum.get_col(col-1),
+                                   act_pos, bips[row], bips);
           cerr << endl;
+          optimum.set(row, col, delta + minimum);
         }
-      }
-    //Length of the interval
-    int interval = bips.size() / (numprocs - 1);
-        
-    //Resulting vector
-    vector<int> optimum_col_new;
+    }
 
-    //BASE CASE
-        
-    //Receive the input column
-    int buf1[n];
-    MPI_Bcast(buf1, n, MPI_INTEGER, 0, MPI_COMM_WORLD);
-    vector<int> input(buf1, buf1 + n);
-        
-    int delta = 0;   // Local contribution to opt solution
-    vector< int > act_pos = computeActivePositions(input);
+  printMatrix(optimum, bips);
 
-    optimum_col_new.clear();
-            
-    //Initializing the resulting vector with the maximum values n
-    for(int i = 0; i < bips.size(); i++)
-      {
-        optimum_col_new.push_back(n);
-      }
-        
-    //Receive the optimum value for the previous step
-    int buf2[bips.size()];
-    MPI_Recv(buf2, bips.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-    vector<int> optimum_fragment(buf2, buf2 + bips.size());
-         
-    for(int row = 0; row < bips.size(); row++)
-      {
-        delta = computeDelta(input, act_pos, bips[row]);
-        optimum_col_new[row] = delta;
-      }
-    //Remembering the input of the previous step
-    vector<int> input_prec = input;
-            
-    //Send the result
-    MPI_Send(&optimum_col_new.front(), optimum_col_new.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD);
+  vector< int > last_col = optimum.get_col(m -1);
+  int best_index = min_element(last_col.begin(), last_col.end()) - last_col.begin();
+  cerr << "Optimum is " << *min_element(last_col.begin(), last_col.end())
+       << " found at position "
+       << best_index << endl;
 
+  printBipartition(bips[best_index]);
+  cerr << endl;
 
-    //ITERATIVE STEPS
-
-    for(int col = 1; col < m; col++)
-      {
-        // Receive the column of the input
-        MPI_Recv(buf1, n, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-        vector<int> input(buf1, buf1 + n);
-        std::cout << "SIAMO PASSATIIIIIII dal primo recv del ciclo :   " << my_rank << std::endl;
-
-        delta = 0;   // Local contribution to opt solution
-        int minimum = 0; // Min value of according bipartition in col-1
-        vector< int > act_pos = computeActivePositions(input);
-
-        optimum_col_new.clear();
-            
-        //Initializing the resulting vector with the maximum values n
-        for(int i = 0; i < bips.size(); i++)
-          {
-            optimum_col_new.push_back(n);
-          }
-
-        //Receive the optimum value for the previous step
-        MPI_Recv(buf2, bips.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-        vector<int> optimum_fragment(buf2, buf2 + bips.size());
-            
-        for(int row = 0; row < bips.size(); row++)
-          {
-            delta = computeDelta(input, act_pos, bips[row]);
-            minimum = computeMinimum(input_prec, optimum_fragment,
-                                     act_pos, bips[row], bips);
-            optimum_col_new[row] = delta + minimum;
-          }
-            
-        //Remembering the input of the previous step
-        input_prec = input;
-            
-        //Send the result
-        MPI_Send(&optimum_col_new.front(), optimum_col_new.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD);
-
-        std::cout << "SONO QUIIIIII i PROCESSIIIIIIII :   " << my_rank << std::endl;
-      } 
-  }
   return 0;
 }
 
