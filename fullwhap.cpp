@@ -42,7 +42,8 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
 */
 int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
                    const vector< int >& active_pos, const vector< bool >& cbip,
-                   const vector< vector< bool > >& bip_set);
+                   const vector< vector< bool > >& bip_set, const int starting,
+		   const int lengt);
 
 /*
   Return the  minimum number of corrections  to turn frag_col into  a homozygous
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
   int m;                     //Number of columns
   int lengths[numprocs];     //Lengths of the interval
   int starts[numprocs];      //Beginning of the interval
+  Matrix input;
 
   vector< vector< bool > > bips;
 
@@ -108,7 +110,7 @@ int main(int argc, char** argv)
       cerr << "Nrows : " << n << endl;
       cerr << "Ncols : " << m << endl;
   
-      Matrix input(n, m);
+      input = Matrix(n, m);
       readMatrix(input, ifs);
       ifs.close();
 
@@ -132,7 +134,7 @@ int main(int argc, char** argv)
     vector<int> input_vect(n * m, 0);
     //Receive input
     MPI_Bcast(&input_vect[0], n * m, MPI_INTEGER, 0,  MPI_COMM_WORLD);
-    Matrix input(input_vect);
+    input = Matrix(n, m, input_vect);
   }
 
   //Compute bipartitions
@@ -197,9 +199,7 @@ int main(int argc, char** argv)
       for(int proc = 0; proc < numprocs; proc++)
 	{
 	  vector<int> optimum_temp(lengths[my_rank], 0);
-	  MPI_Scatterv(&optimum_new.front(), &lengths, &starts,
-                 MPI_Integer, &optimum_temp[0], lengths[my_rank],
-		       MPI_Integer, proc, MPI_COMM_WORLD);
+	  MPI_Scatterv(&optimum_new.front(), &lengths, &starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
 	  int iter1 = 0;
 	  for(int iter2 = starts[my_rank]; iter2 < starts[my_rank] + lengths[my_rank]; iter2++)
 	    {
@@ -276,7 +276,7 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
 
 int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
                    const vector< int >& active_pos, const vector< bool >& cbip,
-                   const vector< vector< bool > >& bip_set
+                   const vector< vector< bool > >& bip_set,
 		   const int starting,
 		   const int length)
 {

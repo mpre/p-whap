@@ -14,6 +14,17 @@ Matrix::Matrix(int rows_in, int columns_in)
   matrix = new int[rows * columns];
 }
 
+Matrix::Matrix(int rows_in, int columns_in, const vector<int>& vect)
+{
+  rows = rows_in;
+  columns = columns_in;
+  matrix = new int[rows * columns];
+  for(int i = 0; i < vect.size(); i++)
+    {
+      matrix[i] = vector[i];
+    }
+}
+
 Matrix::~Matrix()
 {
   delete[] matrix;
@@ -45,4 +56,15 @@ int Matrix::cols_num() const
 int Matrix::rows_num() const
 {
   return rows;
+}
+
+
+vector<int> Matrix::toVector()
+{
+  vector<int> res;
+  for(int i = 0; i < rows * columns; i++)
+    {
+      res.push_back(matrix[i]);
+    }
+  return res;
 }

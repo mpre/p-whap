@@ -20,6 +20,8 @@ public:
   Matrix();
 
   Matrix(int rows_in, int columns_in);
+  
+  Matrix(int rows_in, int columns_in, const vector<int>& vect);
 
   ~Matrix();
 
@@ -32,6 +34,8 @@ public:
   int cols_num() const;
 
   int rows_num() const;
+  
+  vector<int> toVector();
 };
 
 #endif
