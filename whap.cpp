@@ -13,6 +13,7 @@
 
 using namespace std;
 
+
 //Definition of the functions
 
 /*
@@ -254,15 +255,16 @@ vector< int > computeActivePositions(const vector< int >& frag_col)
 
 vector< vector< bool > > computeBipartitions(const int frags_num)
 {
-  vector< vector< bool > > bips;
-  for(int i =0; i < pow(2, frags_num); ++i)
+  long bips_num = pow(2, frags_num);
+  vector< vector< bool > > bips(bips_num, vector< bool >(frags_num, false));
+  for(int i =0; i < bips_num; ++i)
     {
       vector< bool > cbip(frags_num, false);
       for(int j =0; j < frags_num; ++j)
         {
           cbip[j] = (i & (1 << j));
         }
-      bips.push_back(cbip);
+      bips[i] = cbip;
     }
   return bips;
 }
