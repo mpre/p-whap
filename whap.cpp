@@ -13,6 +13,7 @@
 
 using namespace std;
 
+#pragma omp
 
 //Definition of the functions
 
@@ -141,6 +142,7 @@ int main(int argc, char** argv)
       int minimum = 0; // Min value of according bipartition in col-1
       vector< int > act_pos = computeActivePositions(input.get_col(col));
 
+#pragma omp parallel for shared(optimum) private(delta, minimum)
       for(int row = 0; row < optimum.rows_num(); row++)
         {
           delta = computeDelta(input.get_col(col), act_pos, bips[row]);
