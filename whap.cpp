@@ -143,10 +143,8 @@ int main(int argc, char** argv)
       for(int row = 0; row < optimum.rows_num(); row++)
         {
           delta = computeDelta(input.get_col(col), act_pos, bips[row]);
-          cerr << "Bip #" << row << " in accordance with: ";
           minimum = computeMinimum(input.get_col(col-1), optimum.get_col(col-1),
                                    act_pos, bips[row], bips);
-          cerr << endl;
           optimum.set(row, col, delta + minimum);
         }
     }
@@ -199,7 +197,6 @@ int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
   for(int b_index = 0; b_index < bip_set.size(); b_index++)
     if(accordance(cbip, active_pos, bip_set[b_index], prev_act_pos))
       {
-        cerr << b_index << " ";
         if(opt_col[b_index] < minimum)
           minimum = opt_col[b_index];
       }
