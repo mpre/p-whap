@@ -199,7 +199,7 @@ int main(int argc, char** argv)
       for(int proc = 0; proc < numprocs; proc++)
 	{
 	  vector<int> optimum_temp(lengths[my_rank], 0);
-	  MPI_Scatterv(&optimum_new.front(), &lengths, &starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
+	  MPI_Scatterv(&optimum_new.front(), lengths, starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
 	  int iter1 = 0;
 	  for(int iter2 = starts[my_rank]; iter2 < starts[my_rank] + lengths[my_rank]; iter2++)
 	    {

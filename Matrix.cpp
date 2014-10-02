@@ -21,7 +21,7 @@ Matrix::Matrix(int rows_in, int columns_in, const vector<int>& vect)
   matrix = new int[rows * columns];
   for(int i = 0; i < vect.size(); i++)
     {
-      matrix[i] = vector[i];
+      matrix[i] = vect[i];
     }
 }
 
