@@ -119,8 +119,6 @@ int main(int argc, char** argv)
       readMatrix(input, ifs);
       ifs.close();
 
-      input.toVector();
-
       int send_nm[2];
       send_nm[0] = n;
       send_nm[1] = m;
@@ -165,7 +163,6 @@ int main(int argc, char** argv)
 
   vector<int> optimum_prec(bips.size(), n);
   vector<int> optimum_new(bips.size(), n);
-  //cout << "QUAAAA: "<< lengths[my_rank] << endl;
   vector<int> optimum_temp(lengths[my_rank], n);
   vector<int> optimum_temp1(bips.size(), n);
 
@@ -185,6 +182,9 @@ int main(int argc, char** argv)
   for(int col = 1; col < m; col++)
     {
       MPI_Barrier(MPI_COMM_WORLD);
+
+      if(my_rank == 0)
+        cout << "Step  " << col << "/" << m << " - bipartitions = "<< bips.size() << endl;
       
       delta = 0;   // Local contribution to opt solution
       int minimum = 0; // Min value of according bipartition in col-1
@@ -227,7 +227,7 @@ int main(int argc, char** argv)
     //Find the minimum between all the fragments
   if(my_rank == 0)
     {
-      cout << "LAST VALUES:" << endl;
+      cout << "COLLECTED VALUES:" << endl;
       //Proc 0 find the minimum receiving all the resulting fragments
       for (int send = 1; send < numprocs; send++)
 	{
@@ -256,6 +256,7 @@ int main(int argc, char** argv)
     //Each Proc send its resulting fragment
     MPI_Send(&optimum_prec.front(), optimum_prec.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD);
   }
+
   MPI_Finalize();
   return 0;
 }
