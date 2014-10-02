@@ -66,10 +66,10 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
   contains all the positions  (i.e. fragments) covered by the column  j and l is
   the length of this computed array.
 */
-vector< int > computeActivePositions(const vector< int >& frag_col);
+void computeActivePositions(const vector<int>& col, vector<int> &act_pos);
 
 /* Return all the possible bipartitions (max frag_num is 2^64)*/
-vector< vector< bool > > computeBipartitions(const int frags_num);
+void computeBipartitions(const int frags_num, vector< vector< bool > > &bips);
 
 // Support functions
 
@@ -98,7 +98,12 @@ int main(int argc, char** argv)
   int starts[numprocs];      //Beginning of the interval
   Matrix input;
 
-  vector< vector< bool > > bips;
+  for(int i = 0; i < numprocs; i++)
+    {
+      lengths[i] = 0;
+      starts[i] = 0;
+    }
+
 
   if(my_rank == 0)
     {
@@ -110,9 +115,11 @@ int main(int argc, char** argv)
       cerr << "Nrows : " << n << endl;
       cerr << "Ncols : " << m << endl;
   
-      input = Matrix(n, m);
+      input.init(n, m);
       readMatrix(input, ifs);
       ifs.close();
+
+      input.toVector();
 
       int send_nm[2];
       send_nm[0] = n;
@@ -134,40 +141,46 @@ int main(int argc, char** argv)
     vector<int> input_vect(n * m, 0);
     //Receive input
     MPI_Bcast(&input_vect[0], n * m, MPI_INTEGER, 0,  MPI_COMM_WORLD);
-    input = Matrix(n, m, input_vect);
+    input.init(n, m, input_vect);
   }
 
+  
   //Compute bipartitions
-  bips = computeBipartitions(n);
+  vector< vector< bool > > bips;
+  computeBipartitions(n, bips);
 
   //Compute lengths and startings of the interval
-  for (int proc = 1; proc < numprocs; proc++)
+  for (int proc = 0; proc < numprocs; proc++)
     {
-      lengths[proc] =  bips.size() / (numprocs - 1);
-      if ( proc <  bips.size() % (numprocs - 1))
+      lengths[proc] =  bips.size() / numprocs;
+      if (proc <  bips.size() % numprocs)
 	{
-	  ++lengths[proc];
+	  lengths[proc]++;
 	}
-      for (int k = 1; k < proc; k++)
+      for (int k = 0; k < proc; k++)
 	{
 	  starts[proc] += lengths[k];
 	}
     }
 
-  vector<int> optimum_prec;
-  vector<int> optimum_new;
+  vector<int> optimum_prec(bips.size(), n);
+  vector<int> optimum_new(bips.size(), n);
+  //cout << "QUAAAA: "<< lengths[my_rank] << endl;
+  vector<int> optimum_temp(lengths[my_rank], n);
+  vector<int> optimum_temp1(bips.size(), n);
 
-
+  
   int delta = 0;
-  vector< int > act_pos = computeActivePositions(input.get_col(0));
+  vector< int > act_pos;
+  computeActivePositions(input.get_col(0), act_pos);
 
   //Computing Case Base values
   for(int row = 0; row < bips.size(); row++)
     {
       delta = computeDelta(input.get_col(0), act_pos, bips[row]);
-      optimum_prec.push_back(delta);
+      optimum_prec[row] = delta;
     }
-
+  
   //Iterative Step
   for(int col = 1; col < m; col++)
     {
@@ -175,16 +188,11 @@ int main(int argc, char** argv)
       
       delta = 0;   // Local contribution to opt solution
       int minimum = 0; // Min value of according bipartition in col-1
-      vector< int > act_pos = computeActivePositions(input.get_col(col));
-
-      optimum_new.clear();
-            
-      //Initializing the resulting vector with the maximum values n
-        
-      for(int i = 0; i < bips.size(); i++)
-	{
-	  optimum_new.push_back(n);
-	}
+                  
+      computeActivePositions(input.get_col(col), act_pos);
+      
+      //Initializing the resulting vector with the maximum values n  
+      fill(optimum_new.begin(), optimum_new.end(), n);
 
       for(int row = 0; row < bips.size(); row++)
 	{
@@ -195,11 +203,12 @@ int main(int argc, char** argv)
 				   starts[my_rank], lengths[my_rank]);
 	  optimum_new[row] = delta + minimum;
 	}
+      
 
       for(int proc = 0; proc < numprocs; proc++)
 	{
-	  vector<int> optimum_temp(lengths[my_rank], 0);
-	  MPI_Scatterv(&optimum_new.front(), lengths, starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
+          MPI_Scatterv(&optimum_new.front(), lengths, starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
+          
 	  int iter1 = 0;
 	  for(int iter2 = starts[my_rank]; iter2 < starts[my_rank] + lengths[my_rank]; iter2++)
 	    {
@@ -210,43 +219,43 @@ int main(int argc, char** argv)
 	      iter1++;
 	    }
 	}
-
+      
       optimum_prec = optimum_new;
     }
 
   int minimum = n;
-  
-  //Find the minimum between all the fragments
+    //Find the minimum between all the fragments
   if(my_rank == 0)
     {
+      cout << "LAST VALUES:" << endl;
       //Proc 0 find the minimum receiving all the resulting fragments
       for (int send = 1; send < numprocs; send++)
 	{
 	  for(int i = starts[0]; i < starts[0] + lengths[0]; i++)
 	    {
+              cout << " " << optimum_prec[i];
 	      if(optimum_prec[i] < minimum)
 		{
 		  minimum = optimum_prec[i];
 		}
 	    }
-
-
-	  vector<int> optimum_temp(bips.size(), 0);
-	  MPI_Recv(&optimum_temp[0], bips.size(), MPI_INTEGER, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&optimum_temp1[0], bips.size(), MPI_INTEGER, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for(int i = starts[send]; i < starts[send] + lengths[send]; i++)
 	    {
-	      if(optimum_temp[i] < minimum)
+              cout << " " << optimum_temp1[i];
+	      if(optimum_temp1[i] < minimum)
 		{
-		  minimum = optimum_temp[i];
+		  minimum = optimum_temp1[i];
 		}
 	    }
 	}
+      cout << endl;
+      cout << "RESULT : " << minimum << endl;
     } else {
     //Each Proc send its resulting fragment
     MPI_Send(&optimum_prec.front(), optimum_prec.size(), MPI_INTEGER, 0, 0, MPI_COMM_WORLD);
   }
-
   MPI_Finalize();
   return 0;
 }
@@ -280,7 +289,8 @@ int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
 		   const int starting,
 		   const int length)
 {
-  vector< int > prev_act_pos = computeActivePositions(frag_col);
+  vector< int > prev_act_pos;
+  computeActivePositions(frag_col, prev_act_pos);
 
   int minimum = frag_col.size();
 
@@ -333,19 +343,20 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
   return *min_element(solutions.begin(), solutions.end());
 }
 
-vector< int > computeActivePositions(const vector< int >& frag_col)
+void computeActivePositions(const vector<int>& col, vector<int> &act_pos)
 {
-  vector< int > act_pos;
-  for(int i =0; i < (int)frag_col.size(); ++i)
-    if(frag_col[ i ] != -1)
-      act_pos.push_back(i);
-
-  return act_pos;
+  act_pos.clear();
+  for(int i = 0; i < col.size(); i++)
+    {
+      if(col[i] != -1)
+        {
+          act_pos.push_back(i);
+        }
+    }
 }
 
-vector< vector< bool > > computeBipartitions(const int frags_num)
+void computeBipartitions(const int frags_num, vector< vector< bool > > &bips)
 {
-  vector< vector< bool > > bips;
   for(int i =0; i < pow(2, frags_num); ++i)
     {
       vector< bool > cbip(frags_num, false);
@@ -355,8 +366,7 @@ vector< vector< bool > > computeBipartitions(const int frags_num)
         }
       bips.push_back(cbip);
     }
-  return bips;
-}
+ }
 
 void printMatrix(Matrix& in, vector< vector< bool > >& bips)
 {

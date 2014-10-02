@@ -107,6 +107,8 @@ int main(int argc, char** argv)
       Matrix input(n, m);
       readMatrix(input, ifs);
       ifs.close();
+      
+      //cout << "GUARDA: " << input.toVector().size() << endl;
 
       // TEMPORARY: Print input matrix
       for(int row = 0; row < input.rows_num(); ++row)
@@ -157,7 +159,7 @@ int main(int argc, char** argv)
 
       int lengths[numprocs];
       
-      std::cerr << "LA LENGTH DI 0!!! "  << std::endl;
+      //std::cerr << "LA LENGTH DI 0!!! "  << std::endl;
       for (int i = 1; i < numprocs; i++)
         {
           lengths[i] =  bips.size() / (numprocs - 1);

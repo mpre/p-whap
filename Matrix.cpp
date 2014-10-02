@@ -4,30 +4,49 @@ Matrix::Matrix()
 {
   rows = 0;
   columns = 0;
-  matrix = 0;
 }
 
 Matrix::Matrix(int rows_in, int columns_in)
 {
   rows = rows_in;
   columns = columns_in;
-  matrix = new int[rows * columns];
+  matrix.resize(rows * columns);
 }
 
 Matrix::Matrix(int rows_in, int columns_in, const vector<int>& vect)
 {
   rows = rows_in;
   columns = columns_in;
-  matrix = new int[rows * columns];
+  matrix.resize(rows * columns);
   for(int i = 0; i < vect.size(); i++)
     {
       matrix[i] = vect[i];
     }
 }
 
+/**
 Matrix::~Matrix()
 {
   delete[] matrix;
+}
+**/
+
+void Matrix::init(int rows_in, int columns_in)
+{
+  rows = rows_in;
+  columns = columns_in;
+  matrix.resize(rows * columns);
+}
+
+void Matrix::init(int rows_in, int columns_in, const vector<int>& vect)
+{
+  rows = rows_in;
+  columns = columns_in;
+  matrix.resize(rows * columns);
+  for(int i = 0; i < vect.size(); i++)
+    {
+      matrix[i] = vect[i];
+    }
 }
 
 void Matrix::set(int row, int col, int value)

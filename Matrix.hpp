@@ -13,7 +13,7 @@ private:
   int rows;
   int columns;
   
-  int* matrix;
+  vector<int> matrix;
 
 public:
   
@@ -23,7 +23,11 @@ public:
   
   Matrix(int rows_in, int columns_in, const vector<int>& vect);
 
-  ~Matrix();
+  //~Matrix();
+
+  void init(int rows_in, int columns_in);
+
+  void init(int rows_in, int columns_in, const vector<int>& vect);
 
   void set(int row, int col, int value);
   
