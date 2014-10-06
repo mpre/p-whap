@@ -150,7 +150,7 @@ int main(int argc, char** argv)
         }
     }
 
-  printMatrix(optimum, bips);
+  //  printMatrix(optimum, bips);
 
   vector< int > last_col = optimum.get_col(m -1);
   int best_index = min_element(last_col.begin(), last_col.end()) - last_col.begin();
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
        << " found at position "
        << best_index << endl;
 
-  printBipartition(bips[best_index]);
+  //  printBipartition(bips[best_index]);
   cerr << endl;
 
   return 0;
