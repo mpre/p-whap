@@ -115,12 +115,12 @@ int main(int argc, char** argv)
   vector< vector< bool > > bips = computeBipartitions(n);
   cerr << "done." << endl;
 
-  for(int i =0; i < bips.size(); ++i)
-    {
-      cerr << "Bipartition #" << i << " = ";
-      printBipartition(bips[i]);
-      cerr << endl;
-    }
+  // for(int i =0; i < bips.size(); ++i)
+  //   {
+  //     cerr << "Bipartition #" << i << " = ";
+  //     printBipartition(bips[i]);
+  //     cerr << endl;
+  //   }
 
   Matrix optimum(bips.size(), m);
 
