@@ -43,7 +43,7 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
 int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
                    const vector< int >& active_pos, const vector< bool >& cbip,
                    const vector< vector< bool > >& bip_set, const int starting,
-		   const int lengt);
+                   const int lengt);
 
 /*
   Return the  minimum number of corrections  to turn frag_col into  a homozygous
@@ -85,7 +85,7 @@ void printBipartition(vector< bool >& bip);
 //MAIN
 
 int main(int argc, char** argv)
-{	
+{
   int my_rank, numprocs;
 
   MPI_Init(&argc, &argv);
@@ -142,7 +142,6 @@ int main(int argc, char** argv)
     input.init(n, m, input_vect);
   }
 
-  
   //Compute bipartitions
   vector< vector< bool > > bips;
   computeBipartitions(n, bips);
@@ -152,13 +151,13 @@ int main(int argc, char** argv)
     {
       lengths[proc] =  bips.size() / numprocs;
       if (proc <  bips.size() % numprocs)
-	{
-	  lengths[proc]++;
-	}
+        {
+          lengths[proc]++;
+        }
       for (int k = 0; k < proc; k++)
-	{
-	  starts[proc] += lengths[k];
-	}
+        {
+          starts[proc] += lengths[k];
+        }
     }
 
   vector<int> optimum_prec(bips.size(), n);
@@ -166,7 +165,6 @@ int main(int argc, char** argv)
   vector<int> optimum_temp(lengths[my_rank], n);
   vector<int> optimum_temp1(bips.size(), n);
 
-  
   int delta = 0;
   vector< int > act_pos;
   computeActivePositions(input.get_col(0), act_pos);
@@ -177,7 +175,7 @@ int main(int argc, char** argv)
       delta = computeDelta(input.get_col(0), act_pos, bips[row]);
       optimum_prec[row] = delta;
     }
-  
+
   //Iterative Step
   for(int col = 1; col < m; col++)
     {
@@ -185,72 +183,71 @@ int main(int argc, char** argv)
 
       if(my_rank == 0)
         cout << "Step  " << col << "/" << m << " - bipartitions = "<< bips.size() << endl;
-      
+
       delta = 0;   // Local contribution to opt solution
       int minimum = 0; // Min value of according bipartition in col-1
-                  
+
       computeActivePositions(input.get_col(col), act_pos);
-      
-      //Initializing the resulting vector with the maximum values n  
+
+      //Initializing the resulting vector with the maximum values n
       fill(optimum_new.begin(), optimum_new.end(), n);
 
       for(int row = 0; row < bips.size(); row++)
-	{
-	  delta = computeDelta(input.get_col(col), act_pos, bips[row]);
-	  //Optimum_prec is used only for the interval from starts[my_rank] to starts[my_rank] + lengths[my_rank]
-	  minimum = computeMinimum(input.get_col(col - 1), optimum_prec,
-				   act_pos, bips[row], bips, 
-				   starts[my_rank], lengths[my_rank]);
-	  optimum_new[row] = delta + minimum;
-	}
-      
+        {
+          delta = computeDelta(input.get_col(col), act_pos, bips[row]);
+          //Optimum_prec is used only for the interval from starts[my_rank] to starts[my_rank] + lengths[my_rank]
+          minimum = computeMinimum(input.get_col(col - 1), optimum_prec,
+                                   act_pos, bips[row], bips,
+                                   starts[my_rank], lengths[my_rank]);
+          optimum_new[row] = delta + minimum;
+        }
 
       for(int proc = 0; proc < numprocs; proc++)
-	{
+        {
           MPI_Scatterv(&optimum_new.front(), lengths, starts, MPI_INTEGER, &optimum_temp[0], lengths[my_rank], MPI_INTEGER, proc, MPI_COMM_WORLD);
-          
-	  int iter1 = 0;
-	  for(int iter2 = starts[my_rank]; iter2 < starts[my_rank] + lengths[my_rank]; iter2++)
-	    {
-	      if(optimum_temp[iter1] < optimum_new[iter2])
-		{
-		  optimum_new[iter2] = optimum_temp[iter1];
-		}
-	      iter1++;
-	    }
-	}
-      
+
+          int iter1 = 0;
+          for(int iter2 = starts[my_rank]; iter2 < starts[my_rank] + lengths[my_rank]; iter2++)
+            {
+              if(optimum_temp[iter1] < optimum_new[iter2])
+                {
+                  optimum_new[iter2] = optimum_temp[iter1];
+                }
+              iter1++;
+            }
+        }
+
       optimum_prec = optimum_new;
     }
 
   int minimum = n;
-    //Find the minimum between all the fragments
+  //Find the minimum between all the fragments
   if(my_rank == 0)
     {
-      cout << "COLLECTED VALUES:" << endl;
+      //      cout << "COLLECTED VALUES:" << endl;
       //Proc 0 find the minimum receiving all the resulting fragments
       for (int send = 1; send < numprocs; send++)
-	{
-	  for(int i = starts[0]; i < starts[0] + lengths[0]; i++)
-	    {
-              cout << " " << optimum_prec[i];
-	      if(optimum_prec[i] < minimum)
-		{
-		  minimum = optimum_prec[i];
-		}
-	    }
-	  MPI_Recv(&optimum_temp1[0], bips.size(), MPI_INTEGER, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        {
+          for(int i = starts[0]; i < starts[0] + lengths[0]; i++)
+            {
+              //              cout << " " << optimum_prec[i];
+              if(optimum_prec[i] < minimum)
+                {
+                  minimum = optimum_prec[i];
+                }
+            }
+          MPI_Recv(&optimum_temp1[0], bips.size(), MPI_INTEGER, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	  for(int i = starts[send]; i < starts[send] + lengths[send]; i++)
-	    {
-              cout << " " << optimum_temp1[i];
-	      if(optimum_temp1[i] < minimum)
-		{
-		  minimum = optimum_temp1[i];
-		}
-	    }
-	}
-      cout << endl;
+          for(int i = starts[send]; i < starts[send] + lengths[send]; i++)
+            {
+              //              cout << " " << optimum_temp1[i];
+              if(optimum_temp1[i] < minimum)
+                {
+                  minimum = optimum_temp1[i];
+                }
+            }
+        }
+      //      cout << endl;
       cout << "RESULT : " << minimum << endl;
     } else {
     //Each Proc send its resulting fragment
@@ -287,8 +284,8 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
 int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
                    const vector< int >& active_pos, const vector< bool >& cbip,
                    const vector< vector< bool > >& bip_set,
-		   const int starting,
-		   const int length)
+                   const int starting,
+                   const int length)
 {
   vector< int > prev_act_pos;
   computeActivePositions(frag_col, prev_act_pos);
@@ -367,7 +364,7 @@ void computeBipartitions(const int frags_num, vector< vector< bool > > &bips)
         }
       bips.push_back(cbip);
     }
- }
+}
 
 void printMatrix(Matrix& in, vector< vector< bool > >& bips)
 {
