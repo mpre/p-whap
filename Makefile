@@ -13,17 +13,17 @@ CXXFLAGS=-O3 -g
 
 INCLUDES=-I.
 
-all: whap inputgen
+all: base-whap inputgen
 
 ${OBJ_DIR}%.o: %.cpp
 	@echo '* Compiling $<'
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ -c $<
 
-.PHONY: whap
-whap: $(BIN_DIR)whap
+.PHONY: base-whap
+base-whap: $(BIN_DIR)base-whap
 
-$(BIN_DIR)whap: $(WHAP_DEPS)
+$(BIN_DIR)base-whap: $(WHAP_DEPS)
 	@echo '* Linking $@'
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^
@@ -38,4 +38,4 @@ $(BIN_DIR)inputgen: $(INPUTGEN_DEPS)
 
 clean:
 	@echo "Cleaning..."
-	rm -rf ${OBJ_DIR} ${BIN_DIR}
+	rm -rf ${OBJ_DIR}/* ${BIN_DIR}/base-whap
