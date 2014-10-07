@@ -170,6 +170,7 @@ int main(int argc, char** argv)
   computeActivePositions(input.get_col(0), act_pos);
 
   //Computing Case Base values
+#pragma omp parallel for private(delta) shared(optimum_prec)
   for(int row = 0; row < bips.size(); row++)
     {
       delta = computeDelta(input.get_col(0), act_pos, bips[row]);
@@ -192,6 +193,7 @@ int main(int argc, char** argv)
       //Initializing the resulting vector with the maximum values n
       fill(optimum_new.begin(), optimum_new.end(), n);
 
+#pragma omp parallel for private(delta, minimum) shared(optimum_new)
       for(int row = 0; row < bips.size(); row++)
         {
           delta = computeDelta(input.get_col(col), act_pos, bips[row]);
@@ -270,12 +272,19 @@ bool accordance(const vector<bool>& bip1, const vector<int>& act_pos_1,
 
   bool complemented = true;
   bool equal = true;
+  //#pragma omp parallel for shared(complemented, equal)
   for(int i =0; i < shared_pos.size(); ++i)
     {
       if(bip1[shared_pos[i]] == bip2[shared_pos[i]])
-        complemented = false;
+        //#pragma omp critical
+        {
+          complemented = false;
+        }
       else
-        equal = false;
+        //#pragma omp critical
+        {
+          equal = false;
+        }
     }
 
   return (equal || complemented);
@@ -292,12 +301,16 @@ int computeMinimum(const vector< int >& frag_col, const vector< int >& opt_col,
 
   int minimum = frag_col.size();
 
+#pragma omp parallel for default(shared)
   for(int b_index = starting; b_index < starting + length; b_index++)
     if(accordance(cbip, active_pos, bip_set[b_index], prev_act_pos))
       {
         //cerr << b_index << " ";
-        if(opt_col[b_index] < minimum)
-          minimum = opt_col[b_index];
+#pragma omp critical
+        {
+          if(opt_col[b_index] < minimum)
+            minimum = opt_col[b_index];
+        }
       }
 
   return minimum;
@@ -309,6 +322,7 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
   enum {OO, OI, IO, II};
   vector< int > solutions(II+1, 0);
 
+#pragma omp parallel for default(shared)
   for(int p = 0; p < act_pos.size(); ++p)
     {
       if(cbip[act_pos[p]] == false) // Posizione della bipartizione attiva a 0
@@ -316,24 +330,36 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
           // If the element active[i] is in the part 0 in the bipartition bip
           if(frag_col[act_pos[p]] == 1)
             {
-              solutions[OO] += 1;
-              solutions[OI] += 1;
+#pragma omp critical
+              {
+                solutions[OO] += 1;
+                solutions[OI] += 1;
+              }
             }
           else
             {
-              solutions[IO] += 1;
-              solutions[II] += 1;
+#pragma omp critical
+              {
+                solutions[IO] += 1;
+                solutions[II] += 1;
+              }
             }
         }
       else
         {
           // If the element active[i] is in the part 1 in the bipartition bip
           if (frag_col[act_pos[p]] == 1) {
-            solutions[OO] += 1;
-            solutions[IO] += 1;
+#pragma omp critical
+            {
+              solutions[OO] += 1;
+              solutions[IO] += 1;
+            }
           } else {
-            solutions[OI] += 1;
-            solutions[II] += 1;
+#pragma omp critical
+            {
+              solutions[OI] += 1;
+              solutions[II] += 1;
+            }
           }
         }
     }
@@ -344,11 +370,15 @@ int computeDelta(const vector< int >& frag_col, const vector< int >& act_pos,
 void computeActivePositions(const vector<int>& col, vector<int> &act_pos)
 {
   act_pos.clear();
+  //#pragma omp parallel for default(shared)
   for(int i = 0; i < col.size(); i++)
     {
       if(col[i] != -1)
         {
-          act_pos.push_back(i);
+          //#pragma omp critical
+          {
+            act_pos.push_back(i);
+          }
         }
     }
 }
